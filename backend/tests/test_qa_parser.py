@@ -7,7 +7,7 @@ from qa_parser import extract_cards, sanitize_tag
 
 
 BIPOLAR_PARAGRAPHS = [
-    Paragraph(text="TREATMENT OF BIPOLAR DISORDER", is_heading=True, text_color="#800080"),
+    Paragraph(text="TREATMENT OF BIPOLAR DISORDER", text_color="#800080"),
     Paragraph(text="What are the most effective anti-psychotics for acute mania?", is_bold=True),
     Paragraph(text="-  SGA: risperidone, quetiapine, olanzapine"),
     Paragraph(text="-  haloperidol"),
@@ -57,12 +57,32 @@ BIPOLAR_PARAGRAPHS = [
 ]
 
 
+PSYCHOTIC_DISORDERS_PARAGRAPHS = [
+    Paragraph(text="PSYCHOTIC DISORDERS", text_color="#ff6600"),
+    Paragraph(text="INTRO TO PSYCHOTIC DISORDERS", text_color="#800080"),
+    Paragraph(text="Define psychotic disorders", is_bold=True),
+    Paragraph(text="- pt loses touch with reality, but consciousness intact"),
+    Paragraph(text="5 features of psychotic disorders?", is_bold=True),
+    Paragraph(text="· Delusions"),
+    Paragraph(text="· Hallucinations"),
+    Paragraph(text="· disorganised speech"),
+    Paragraph(text="· disorganised motor behaviour"),
+    Paragraph(text="· negative Sx"),
+    Paragraph(text="FIRST EPISODE PSYCHOSIS", text_color="#800080"),
+    Paragraph(text="Define first episode psychosis", is_bold=True),
+    Paragraph(text="- 1 week or more of sustained positive symptoms"),
+    Paragraph(text="SCHIZOPHRENIA", text_color="#800080"),
+    Paragraph(text="Define schizophrenia", is_bold=True),
+    Paragraph(text="- Chronic disorder with psychosis + negative/cognitive symptoms"),
+]
+
+
 def test_extracts_correct_number_of_cards():
     cards = extract_cards(BIPOLAR_PARAGRAPHS)
     assert len(cards) == 11
 
 
-def test_all_cards_tagged():
+def test_all_bipolar_cards_tagged():
     cards = extract_cards(BIPOLAR_PARAGRAPHS)
     for card in cards:
         assert "Treatment-Of-Bipolar-Disorder" in card.tags
@@ -116,19 +136,59 @@ def test_consecutive_bold_lines():
     assert cards[1].back == "Answer to question two"
 
 
-def test_multiple_sections():
+def test_nested_tags_orange_and_purple():
+    cards = extract_cards(PSYCHOTIC_DISORDERS_PARAGRAPHS)
+    assert len(cards) == 4
+    assert cards[0].tags == ["Psychotic-Disorders::Intro-To-Psychotic-Disorders"]
+    assert cards[1].tags == ["Psychotic-Disorders::Intro-To-Psychotic-Disorders"]
+    assert cards[2].tags == ["Psychotic-Disorders::First-Episode-Psychosis"]
+    assert cards[3].tags == ["Psychotic-Disorders::Schizophrenia"]
+
+
+def test_purple_only_no_parent():
+    cards = extract_cards(BIPOLAR_PARAGRAPHS)
+    assert cards[0].tags == ["Treatment-Of-Bipolar-Disorder"]
+
+
+def test_orange_resets_purple():
     paragraphs = [
-        Paragraph(text="Section A", is_heading=True),
+        Paragraph(text="TOPIC A", text_color="#ff6600"),
+        Paragraph(text="SUBTOPIC A1", text_color="#800080"),
         Paragraph(text="Q1?", is_bold=True),
         Paragraph(text="A1"),
-        Paragraph(text="Section B", is_heading=True),
+        Paragraph(text="TOPIC B", text_color="#ff6600"),
         Paragraph(text="Q2?", is_bold=True),
         Paragraph(text="A2"),
     ]
     cards = extract_cards(paragraphs)
-    assert len(cards) == 2
-    assert cards[0].tags == ["Section-A"]
-    assert cards[1].tags == ["Section-B"]
+    assert cards[0].tags == ["Topic-A::Subtopic-A1"]
+    assert cards[1].tags == ["Topic-B"]
+
+
+def test_multiple_purple_under_one_orange():
+    paragraphs = [
+        Paragraph(text="MAIN TOPIC", text_color="#ff6600"),
+        Paragraph(text="SUB ONE", text_color="#800080"),
+        Paragraph(text="Q1?", is_bold=True),
+        Paragraph(text="A1"),
+        Paragraph(text="SUB TWO", text_color="#800080"),
+        Paragraph(text="Q2?", is_bold=True),
+        Paragraph(text="A2"),
+    ]
+    cards = extract_cards(paragraphs)
+    assert cards[0].tags == ["Main-Topic::Sub-One"]
+    assert cards[1].tags == ["Main-Topic::Sub-Two"]
+
+
+def test_heading_level_explicit():
+    paragraphs = [
+        Paragraph(text="Level 1", heading_level=1),
+        Paragraph(text="Level 2", heading_level=2),
+        Paragraph(text="Q?", is_bold=True),
+        Paragraph(text="A"),
+    ]
+    cards = extract_cards(paragraphs)
+    assert cards[0].tags == ["Level-1::Level-2"]
 
 
 def test_colored_text_as_heading():

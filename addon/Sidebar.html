@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('styles.css.html'); ?>
+</head>
+<body>
+  <h2>Docs to Anki</h2>
+
+  <div class="input-group">
+    <label for="deckName">Deck Name</label>
+    <input type="text" id="deckName" placeholder="Loading...">
+  </div>
+
+  <button class="btn btn-primary" id="convertBtn" onclick="convert()">
+    Convert to Anki Cards
+  </button>
+
+  <div class="spinner" id="spinner">Extracting cards...</div>
+  <div class="error" id="error"></div>
+
+  <script>
+    google.script.run
+      .withSuccessHandler(function(result) {
+        document.getElementById('deckName').value = result.docTitle || 'My Deck';
+      })
+      .extractDocContent();
+
+    function convert() {
+      var btn = document.getElementById('convertBtn');
+      var spinner = document.getElementById('spinner');
+      var error = document.getElementById('error');
+
+      btn.disabled = true;
+      spinner.classList.add('active');
+      error.style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          spinner.classList.remove('active');
+          btn.disabled = false;
+
+          google.script.run
+            .withSuccessHandler(function(extractResult) {
+              var deckName = document.getElementById('deckName').value || 'My Deck';
+              google.script.run.showCardReview(
+                JSON.stringify(extractResult.cards),
+                deckName
+              );
+            })
+            .withFailureHandler(function(err) {
+              spinner.classList.remove('active');
+              btn.disabled = false;
+              error.textContent = 'Failed to extract cards: ' + err.message;
+              error.style.display = 'block';
+            })
+            .sendToBackend(result.paragraphs);
+        })
+        .withFailureHandler(function(err) {
+          spinner.classList.remove('active');
+          btn.disabled = false;
+          error.textContent = 'Failed to read document: ' + err.message;
+          error.style.display = 'block';
+        })
+        .extractDocContent();
+    }
+  </script>
+</body>
+</html>

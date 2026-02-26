@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('styles.css.html'); ?>
+</head>
+<body>
+  <div id="cardList" class="card-list"></div>
+
+  <div class="no-cards" id="noCards" style="display:none;">
+    No cards found in this document.<br>
+    Make sure your questions are in <strong>bold</strong>.
+  </div>
+
+  <div class="bottom-bar">
+    <span class="card-count" id="cardCount"></span>
+    <button class="btn btn-primary" id="downloadBtn" onclick="download()" style="width:auto;">
+      Download .apkg
+    </button>
+  </div>
+
+  <div class="spinner" id="spinner"></div>
+  <div class="error" id="error"></div>
+
+  <script>
+    var cards = JSON.parse(<?= cardsJson ?>);
+    var deckName = <?= deckName ?>;
+
+    function render() {
+      var list = document.getElementById('cardList');
+      var noCards = document.getElementById('noCards');
+      var count = document.getElementById('cardCount');
+
+      if (cards.length === 0) {
+        list.style.display = 'none';
+        noCards.style.display = 'block';
+        count.textContent = '0 cards';
+        return;
+      }
+
+      noCards.style.display = 'none';
+      list.style.display = 'block';
+      count.textContent = cards.length + ' card' + (cards.length !== 1 ? 's' : '');
+
+      list.innerHTML = cards.map(function(card, i) {
+        var tagsHtml = card.tags.map(function(tag) {
+          return '<span class="tag-chip">' + escapeHtml(tag) + '</span>';
+        }).join('');
+
+        return '<div class="card-item" id="card-' + i + '">' +
+          '<div class="card-actions">' +
+            '<button class="btn-danger" onclick="editCard(' + i + ')">Edit</button>' +
+            '<button class="btn-danger" onclick="deleteCard(' + i + ')">Delete</button>' +
+          '</div>' +
+          '<div class="card-front">' + escapeHtml(card.front) + '</div>' +
+          '<div class="card-back">' + escapeHtml(card.back) + '</div>' +
+          (tagsHtml ? '<div class="card-tags">' + tagsHtml + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    function editCard(index) {
+      var card = cards[index];
+      var el = document.getElementById('card-' + index);
+
+      el.innerHTML =
+        '<div style="margin-bottom:8px;">' +
+          '<label style="font-size:12px;color:#5f6368;">Front</label>' +
+          '<textarea class="edit-field" id="edit-front-' + index + '" rows="2">' + escapeHtml(card.front) + '</textarea>' +
+        '</div>' +
+        '<div style="margin-bottom:8px;">' +
+          '<label style="font-size:12px;color:#5f6368;">Back</label>' +
+          '<textarea class="edit-field" id="edit-back-' + index + '" rows="4">' + escapeHtml(card.back) + '</textarea>' +
+        '</div>' +
+        '<button class="btn btn-secondary" onclick="saveEdit(' + index + ')" style="width:auto;padding:6px 16px;margin-right:8px;">Save</button>' +
+        '<button class="btn btn-secondary" onclick="render()" style="width:auto;padding:6px 16px;">Cancel</button>';
+    }
+
+    function saveEdit(index) {
+      cards[index].front = document.getElementById('edit-front-' + index).value;
+      cards[index].back = document.getElementById('edit-back-' + index).value;
+      render();
+    }
+
+    function deleteCard(index) {
+      cards.splice(index, 1);
+      render();
+    }
+
+    function download() {
+      var btn = document.getElementById('downloadBtn');
+      var spinner = document.getElementById('spinner');
+      var error = document.getElementById('error');
+
+      btn.disabled = true;
+      spinner.classList.add('active');
+      spinner.textContent = 'Generating deck...';
+      error.style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(base64Data) {
+          spinner.classList.remove('active');
+          btn.disabled = false;
+
+          var byteCharacters = atob(base64Data);
+          var byteNumbers = new Array(byteCharacters.length);
+          for (var i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          var byteArray = new Uint8Array(byteNumbers);
+          var blob = new Blob([byteArray], { type: 'application/octet-stream' });
+
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = deckName + '.apkg';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        })
+        .withFailureHandler(function(err) {
+          spinner.classList.remove('active');
+          btn.disabled = false;
+          error.textContent = 'Failed to generate deck: ' + err.message;
+          error.style.display = 'block';
+        })
+        .generateDeck(cards, deckName);
+    }
+
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(text));
+      return div.innerHTML;
+    }
+
+    render();
+  </script>
+</body>
+</html>

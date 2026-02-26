@@ -112,3 +112,4 @@ cython_debug/
 
 # Project-specific
 *.apkg
+plan/

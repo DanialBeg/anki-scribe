@@ -1,15 +1,14 @@
 # Anki Scribe
 
-Converts Google Docs study notes into Anki flashcard decks (.apkg).
+Converts study notes into Anki flashcard decks (.apkg).
 
 Write your notes with bold questions and answers underneath. Anki Scribe picks them up, lets you review the cards, and exports a deck you can import straight into Anki.
 
 ## How it works
 
-1. Open a Google Doc with your study notes
-2. Click "Convert to Anki Cards" in the sidebar
-3. Review, edit, or delete cards in the preview
-4. Download the .apkg file and import into Anki
+**Web UI** — upload a PDF at [anki-scribe.vercel.app](https://anki-scribe.vercel.app), preview the extracted cards, then download the .apkg file.
+
+**Google Docs add-on** — convert notes directly from a Google Doc sidebar.
 
 ## Note format
 
@@ -36,6 +35,7 @@ Cards have stable IDs based on the question text. If you edit your notes and re-
 
 ```
 backend/     Python API (FastAPI + genanki) — parses notes and generates .apkg files
+frontend/    Web UI (React + Vite + TypeScript) — PDF upload, card preview, .apkg download
 addon/       Google Docs add-on (Apps Script) — reads the doc and shows the UI
 ```
 
@@ -58,4 +58,10 @@ pytest
 
 ## Deployment
 
-The backend runs on any platform that supports Docker (Cloud Run, Railway, Render, etc.). The add-on is installed via Google Apps Script as a test deployment — no marketplace listing needed for personal use.
+| Component | Platform |
+|-----------|----------|
+| Backend | Google Cloud Run (auto-deploys from `main` via Cloud Build) |
+| Frontend | Vercel at [anki-scribe.vercel.app](https://anki-scribe.vercel.app) (auto-deploys from `main`, root directory: `frontend/`) |
+| Add-on | Google Apps Script (test deployment, personal use) |
+
+The frontend reads `VITE_API_URL` to know where the backend lives (set as an env var in Vercel).

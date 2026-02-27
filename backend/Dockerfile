@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir fastapi uvicorn genanki pydantic
+RUN pip install --no-cache-dir fastapi uvicorn genanki pydantic PyMuPDF python-multipart
 
 COPY *.py .
 

@@ -113,3 +113,4 @@ cython_debug/
 # Project-specific
 *.apkg
 plan/
+CLAUDE.md

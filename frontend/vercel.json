@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/notes-to-anki/(.*)", "destination": "/notes-to-anki/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

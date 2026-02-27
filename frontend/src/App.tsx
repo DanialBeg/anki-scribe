@@ -3,7 +3,7 @@ import NotesToAnki from './pages/NotesToAnki'
 
 export default function App() {
   return (
-    <BrowserRouter basename="/notes-to-anki">
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<NotesToAnki />} />
       </Routes>

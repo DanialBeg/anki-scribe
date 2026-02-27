@@ -1,11 +1,10 @@
 """Parse PDF files into Paragraph objects using PyMuPDF."""
 
+import colorsys
+
 import fitz
 
 from models import Paragraph
-
-ORANGE_COLORS = {"#ff6600", "#e69138", "#ff9900", "#f6b26b", "#ce7e00", "#ff8c00"}
-PURPLE_COLORS = {"#800080", "#9900ff", "#674ea7", "#8e7cc3", "#7030a0", "#9933ff"}
 
 
 def _rgb_to_hex(color: int) -> str:
@@ -26,10 +25,21 @@ def _is_bold_span(span: dict) -> bool:
 
 
 def _detect_heading_color(hex_color: str) -> int | None:
-    """Return heading level (1=orange, 2=purple) if the color matches, else None."""
-    if hex_color in ORANGE_COLORS:
+    """Return heading level (1=orange, 2=purple) by matching hue range."""
+    r = int(hex_color[1:3], 16) / 255
+    g = int(hex_color[3:5], 16) / 255
+    b = int(hex_color[5:7], 16) / 255
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    hue = h * 360
+
+    if s < 0.2 or v < 0.2:
+        return None
+
+    # Orange/red range: ~10-50 degrees
+    if 10 <= hue <= 50:
         return 1
-    if hex_color in PURPLE_COLORS:
+    # Purple/magenta range: ~270-330 degrees
+    if 270 <= hue <= 330:
         return 2
     return None
 

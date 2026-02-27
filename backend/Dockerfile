@@ -5,7 +5,7 @@ WORKDIR /app
 COPY pyproject.toml .
 RUN pip install --no-cache-dir fastapi uvicorn genanki pydantic PyMuPDF python-multipart
 
-COPY *.py .
+COPY *.py ./
 
 EXPOSE 8080
 

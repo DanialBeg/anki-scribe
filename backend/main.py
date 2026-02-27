@@ -18,6 +18,7 @@ app.add_middleware(
         "https://script.google.com",
         "https://danialbeg.com",
         "https://www.danialbeg.com",
+        "https://anki-scribe.vercel.app",
         "http://localhost:5173",
     ],
     allow_methods=["*"],

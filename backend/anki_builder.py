@@ -76,15 +76,27 @@ def _text_to_html(text: str) -> str:
     return "<br>".join(html_lines)
 
 
-def build_deck(cards: list[ExtractedCard], deck_name: str = "My Deck") -> bytes:
-    """Build an .apkg file from a list of extracted cards."""
-    deck_id = _stable_note_id(deck_name)
-    deck = genanki.Deck(deck_id, deck_name)
-    media_files = []
+def _tag_to_subdeck(tag: str) -> str:
+    """Convert a tag like 'Topic-A::Sub-B' to a readable subdeck name like 'Topic A::Sub B'."""
+    return "::".join(part.replace("-", " ") for part in tag.split("::"))
 
+
+def build_deck(cards: list[ExtractedCard], deck_name: str = "My Deck") -> bytes:
+    """Build an .apkg file from a list of extracted cards, using tags as subdecks."""
+    decks: dict[str, genanki.Deck] = {}
+    media_files = []
     tmpdir = tempfile.mkdtemp()
 
     for card in cards:
+        if card.tags:
+            subdeck_suffix = _tag_to_subdeck(card.tags[0])
+            full_name = f"{deck_name}::{subdeck_suffix}"
+        else:
+            full_name = deck_name
+
+        if full_name not in decks:
+            decks[full_name] = genanki.Deck(_stable_note_id(full_name), full_name)
+
         back_html = _text_to_html(card.back)
 
         for i, img_b64 in enumerate(card.images):
@@ -101,9 +113,9 @@ def build_deck(cards: list[ExtractedCard], deck_name: str = "My Deck") -> bytes:
             tags=card.tags,
             guid=genanki.guid_for(card.front),
         )
-        deck.add_note(note)
+        decks[full_name].add_note(note)
 
-    package = genanki.Package(deck)
+    package = genanki.Package(list(decks.values()))
     if media_files:
         package.media_files = media_files
 

@@ -178,6 +178,12 @@ export default function NotesToAnki() {
             />
           </div>
 
+          {cards.length > 0 && (
+            <button className="nta-btn nta-btn--primary" onClick={downloadDeck}>
+              Download .apkg
+            </button>
+          )}
+
           {cards.length === 0 && (
             <p className="nta-empty">No cards were extracted. Make sure your PDF has bold questions with answers below them.</p>
           )}
@@ -241,11 +247,6 @@ export default function NotesToAnki() {
             ))}
           </div>
 
-          {cards.length > 0 && (
-            <button className="nta-btn nta-btn--primary" onClick={downloadDeck}>
-              Download .apkg
-            </button>
-          )}
         </div>
       )}
     </div>

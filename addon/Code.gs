@@ -165,11 +165,16 @@ function sendToBackend(paragraphs) {
   return JSON.parse(response.getContentText());
 }
 
-function generateDeck(cards, deckName) {
+function generateDeck(cards, deckName, cardsOriginal, cardsEdited, cardsDeleted) {
+  var payload = { cards: cards, deck_name: deckName };
+  if (cardsOriginal != null) payload.cards_original = cardsOriginal;
+  if (cardsEdited != null) payload.cards_edited = cardsEdited;
+  if (cardsDeleted != null) payload.cards_deleted = cardsDeleted;
+
   var options = {
     method: 'post',
     contentType: 'application/json',
-    payload: JSON.stringify({ cards: cards, deck_name: deckName }),
+    payload: JSON.stringify(payload),
     muteHttpExceptions: true
   };
 

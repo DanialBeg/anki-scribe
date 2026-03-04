@@ -37,3 +37,6 @@ class GenerateRequest(BaseModel):
     """Request body for the /api/generate endpoint."""
     cards: List[ExtractedCard]
     deck_name: str = "My Deck"
+    cards_original: Optional[int] = None
+    cards_edited: Optional[int] = None
+    cards_deleted: Optional[int] = None

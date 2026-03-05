@@ -25,6 +25,9 @@
   <script>
     var cards = JSON.parse(<?= cardsJson ?>);
     var deckName = <?= deckName ?>;
+    var cardsOriginal = cards.length;
+    var editCount = 0;
+    var deleteCount = 0;
 
     function render() {
       var list = document.getElementById('cardList');
@@ -79,11 +82,13 @@
     function saveEdit(index) {
       cards[index].front = document.getElementById('edit-front-' + index).value;
       cards[index].back = document.getElementById('edit-back-' + index).value;
+      editCount++;
       render();
     }
 
     function deleteCard(index) {
       cards.splice(index, 1);
+      deleteCount++;
       render();
     }
 
@@ -123,7 +128,7 @@
           error.textContent = 'Failed to generate deck: ' + err.message;
           error.style.display = 'block';
         })
-        .generateDeck(cards, deckName);
+        .generateDeck(cards, deckName, cardsOriginal, editCount, deleteCount);
     }
 
     function escapeHtml(text) {

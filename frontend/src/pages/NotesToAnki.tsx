@@ -19,6 +19,7 @@ export default function NotesToAnki() {
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [metrics, setMetrics] = useState({ original: 0, edited: 0, deleted: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadPdf = useCallback(async (file: File) => {
@@ -48,6 +49,7 @@ export default function NotesToAnki() {
       }
       const data = await res.json()
       setCards(data.cards)
+      setMetrics({ original: data.cards.length, edited: 0, deleted: 0 })
       setState('preview')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
@@ -69,6 +71,7 @@ export default function NotesToAnki() {
 
   const deleteCard = useCallback((idx: number) => {
     setCards(prev => prev.filter((_, i) => i !== idx))
+    setMetrics(prev => ({ ...prev, deleted: prev.deleted + 1 }))
   }, [])
 
   const updateCard = useCallback((idx: number, field: 'front' | 'back', value: string) => {
@@ -83,7 +86,13 @@ export default function NotesToAnki() {
       const res = await fetch(`${API_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cards, deck_name: deckName }),
+        body: JSON.stringify({
+          cards,
+          deck_name: deckName,
+          cards_original: metrics.original,
+          cards_edited: metrics.edited,
+          cards_deleted: metrics.deleted,
+        }),
       })
       if (!res.ok) throw new Error(`Generation failed (${res.status})`)
 
@@ -99,13 +108,14 @@ export default function NotesToAnki() {
       setError(err instanceof Error ? err.message : 'Download failed')
       setState('preview')
     }
-  }, [cards, deckName])
+  }, [cards, deckName, metrics])
 
   const reset = useCallback(() => {
     setCards([])
     setState('idle')
     setError(null)
     setEditingIdx(null)
+    setMetrics({ original: 0, edited: 0, deleted: 0 })
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -203,7 +213,14 @@ export default function NotesToAnki() {
                   <div className="nta-card-actions">
                     <button
                       className="nta-btn-icon"
-                      onClick={() => setEditingIdx(editingIdx === idx ? null : idx)}
+                      onClick={() => {
+                        if (editingIdx === idx) {
+                          setMetrics(prev => ({ ...prev, edited: prev.edited + 1 }))
+                          setEditingIdx(null)
+                        } else {
+                          setEditingIdx(idx)
+                        }
+                      }}
                       title={editingIdx === idx ? 'Done editing' : 'Edit card'}
                     >
                       {editingIdx === idx ? '✓' : '✎'}

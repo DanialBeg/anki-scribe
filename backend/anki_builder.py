@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import os
+import re
 import tempfile
 
 import genanki
@@ -37,6 +38,13 @@ img {
     height: auto;
     margin: 8px 0;
 }
+ul, ol {
+    margin: 4px 0;
+    padding-left: 24px;
+}
+li {
+    margin: 2px 0;
+}
 """
 
 MODEL = genanki.Model(
@@ -60,20 +68,62 @@ def _stable_note_id(text: str) -> int:
     return int(digest[:8], 16)
 
 
+_UL_RE = re.compile(r"^[-•·–—]\s+(.*)")
+_OL_RE = re.compile(r"^\d{1,2}[.)]\s+(.*)")
+
+
+def _escape_html(text: str) -> str:
+    """Escape HTML special characters."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _text_to_html(text: str) -> str:
-    """Convert plain text with newlines to HTML, preserving any existing HTML tags (tables, images)."""
+    """Convert plain text with newlines to HTML with proper list formatting."""
+    text = text.replace("\u200b", " ")
+    text = re.sub(r" {2,}", " ", text)
     lines = text.split("\n")
-    html_lines = []
-    for line in lines:
-        stripped = line.strip()
+    html_parts = []
+    i = 0
+
+    while i < len(lines):
+        stripped = lines[i].strip()
         if not stripped:
+            i += 1
             continue
+
         if stripped.startswith("<table") or stripped.startswith("<img"):
-            html_lines.append(stripped)
-        else:
-            stripped = stripped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            html_lines.append(stripped)
-    return "<br>".join(html_lines)
+            html_parts.append(stripped)
+            i += 1
+            continue
+
+        if _UL_RE.match(stripped):
+            items = []
+            while i < len(lines):
+                s = lines[i].strip()
+                m = _UL_RE.match(s) if s else None
+                if not m:
+                    break
+                items.append(f"<li>{_escape_html(m.group(1))}</li>")
+                i += 1
+            html_parts.append(f"<ul>{''.join(items)}</ul>")
+            continue
+
+        if _OL_RE.match(stripped):
+            items = []
+            while i < len(lines):
+                s = lines[i].strip()
+                m = _OL_RE.match(s) if s else None
+                if not m:
+                    break
+                items.append(f"<li>{_escape_html(m.group(1))}</li>")
+                i += 1
+            html_parts.append(f"<ol>{''.join(items)}</ol>")
+            continue
+
+        html_parts.append(_escape_html(stripped))
+        i += 1
+
+    return "<br>".join(html_parts)
 
 
 def _tag_to_subdeck(tag: str) -> str:

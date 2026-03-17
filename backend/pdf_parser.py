@@ -1,10 +1,13 @@
 """Parse PDF files into Paragraph objects using PyMuPDF."""
 
 import colorsys
+import re
 
 import fitz
 
 from models import Paragraph
+
+_BULLET_RE = re.compile(r"^(\d{1,2}[.)]\s|[-•·–—]\s)")
 
 
 def _rgb_to_hex(color: int) -> str:
@@ -54,12 +57,16 @@ def _line_to_paragraph(spans: list[dict]) -> Paragraph | None:
         text = span.get("text", "")
         if not text.strip():
             continue
+        if text_parts and text_parts[-1] and not text_parts[-1][-1].isspace() and not text[0].isspace():
+            text_parts.append(" ")
         text_parts.append(text)
         if not _is_bold_span(span):
             all_bold = False
         colors.add(_rgb_to_hex(span.get("color", 0)))
 
     full_text = "".join(text_parts).strip()
+    full_text = full_text.replace("\u200b", " ")
+    full_text = re.sub(r" {2,}", " ", full_text)
     if not full_text:
         return None
 
@@ -83,6 +90,29 @@ def _line_to_paragraph(spans: list[dict]) -> Paragraph | None:
         text_color=text_color,
         heading_level=heading_level,
     )
+
+
+def _merge_continuations(paragraphs: list[Paragraph]) -> list[Paragraph]:
+    """Merge PDF continuation lines back into their parent bullet/list items."""
+    if not paragraphs:
+        return paragraphs
+    merged = [paragraphs[0]]
+    for para in paragraphs[1:]:
+        prev = merged[-1]
+        if not para.text:
+            merged.append(para)
+            continue
+        if (not para.is_bold and not para.is_heading
+                and not prev.is_bold and not prev.is_heading
+                and _BULLET_RE.match(prev.text)
+                and not _BULLET_RE.match(para.text)):
+            prev.text = prev.text.rstrip() + " " + para.text.lstrip()
+        elif (para.is_bold and prev.is_bold
+                and para.text[0].islower()):
+            prev.text = prev.text.rstrip() + " " + para.text.lstrip()
+        else:
+            merged.append(para)
+    return merged
 
 
 def _extract_images(page: fitz.Page) -> list[str]:
@@ -129,4 +159,4 @@ def parse_pdf(pdf_bytes: bytes) -> list[Paragraph]:
             paragraphs.append(Paragraph(text="", images=page_images))
 
     doc.close()
-    return paragraphs
+    return _merge_continuations(paragraphs)

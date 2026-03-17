@@ -16,7 +16,7 @@ Bold text is treated as the front of a card. Everything below it (until the next
 
 Section headings with color (e.g. purple titles) are applied as Anki tags to all cards in that section.
 
-Tables and images in answers are included on the card.
+Tables and images in answers are included on the card. Bullet and numbered lists are rendered as proper HTML lists.
 
 ```
 PHARMACOLOGY                          <- heading, becomes a tag
@@ -44,7 +44,7 @@ addon/       Google Docs add-on (Apps Script) — reads the doc and shows the UI
 ```
 cd backend
 python -m venv .venv && source .venv/bin/activate
-pip install fastapi uvicorn genanki pydantic
+pip install -e ".[dev]"
 uvicorn main:app --reload
 ```
 

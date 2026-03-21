@@ -20,6 +20,7 @@ export default function NotesToAnki() {
   const [dragOver, setDragOver] = useState(false)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [metrics, setMetrics] = useState({ original: 0, edited: 0, deleted: 0 })
+  const [downloadSuccess, setDownloadSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadPdf = useCallback(async (file: File) => {
@@ -72,7 +73,8 @@ export default function NotesToAnki() {
   const deleteCard = useCallback((idx: number) => {
     setCards(prev => prev.filter((_, i) => i !== idx))
     setMetrics(prev => ({ ...prev, deleted: prev.deleted + 1 }))
-  }, [])
+    if (editingIdx === idx) setEditingIdx(null)
+  }, [editingIdx])
 
   const updateCard = useCallback((idx: number, field: 'front' | 'back', value: string) => {
     setCards(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c))
@@ -104,6 +106,8 @@ export default function NotesToAnki() {
       a.click()
       URL.revokeObjectURL(url)
       setState('preview')
+      setDownloadSuccess(true)
+      setTimeout(() => setDownloadSuccess(false), 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed')
       setState('preview')
@@ -115,157 +119,233 @@ export default function NotesToAnki() {
     setState('idle')
     setError(null)
     setEditingIdx(null)
+    setDownloadSuccess(false)
     setMetrics({ original: 0, edited: 0, deleted: 0 })
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
   return (
-    <div className="nta-container">
-      <header className="nta-header">
-        <h1>Notes to Anki</h1>
-        <p className="nta-subtitle">Upload a PDF of your study notes and download an Anki deck</p>
-      </header>
-
-      {error && <div className="nta-error">{error}</div>}
-
-      {state === 'idle' && (
-        <div
-          className={`nta-upload-zone ${dragOver ? 'nta-upload-zone--active' : ''}`}
-          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <div className="nta-upload-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="12" y1="18" x2="12" y2="12" />
-              <line x1="9" y1="15" x2="12" y2="12" />
-              <line x1="15" y1="15" x2="12" y2="12" />
+    <>
+      <div className="header">
+        <div className="logo-mark">
+          <div className="logo-icon">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="14" height="14" rx="2"/>
+              <line x1="5.5" y1="6" x2="12.5" y2="6"/>
+              <line x1="5.5" y1="9" x2="10" y2="9"/>
+              <line x1="5.5" y1="12" x2="11.5" y2="12"/>
             </svg>
           </div>
-          <p className="nta-upload-text">Drag & drop your PDF here</p>
-          <p className="nta-upload-hint">or click to browse</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,application/pdf"
-            onChange={handleFileChange}
-            hidden
-          />
         </div>
-      )}
+        <h1>Notes <em>to</em> Anki</h1>
+        <p className="subtitle">Upload your study notes & download a ready-to-import deck</p>
+      </div>
 
-      {state === 'uploading' && (
-        <div className="nta-spinner-container">
-          <div className="nta-spinner" />
-          <p>Extracting cards from PDF...</p>
-        </div>
-      )}
+      <div className="main">
+        {error && <div className="nta-error">{error}</div>}
 
-      {state === 'generating' && (
-        <div className="nta-spinner-container">
-          <div className="nta-spinner" />
-          <p>Building Anki deck...</p>
-        </div>
-      )}
-
-      {state === 'preview' && (
-        <div className="nta-preview">
-          <div className="nta-preview-header">
-            <span className="nta-card-count">{cards.length} card{cards.length !== 1 ? 's' : ''} found</span>
-            <button className="nta-btn nta-btn--secondary" onClick={reset}>Upload different PDF</button>
+        {/* UPLOAD / LOADING SCREEN */}
+        {(state === 'idle' || state === 'uploading') && (
+          <div className="screen">
+            <div
+              className={`upload-zone${dragOver ? ' dragging' : ''}${state === 'uploading' ? ' loading' : ''}`}
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => state === 'idle' && fileInputRef.current?.click()}
+            >
+              {state === 'uploading' ? (
+                <>
+                  <div className="spinner" />
+                  <p className="loading-text">Generating flashcards&hellip;</p>
+                  <div className="progress-bar-wrap">
+                    <div className="progress-bar-fill" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="upload-icon">
+                    <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 20h16M14 6v10M10 10l4-4 4 4"/>
+                    </svg>
+                  </div>
+                  <p className="upload-primary">Drop your PDF here</p>
+                  <p className="upload-secondary">or click anywhere to browse</p>
+                  <span className="upload-hint">Supports multi-page study notes & textbooks</span>
+                </>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleFileChange}
+                hidden
+              />
+            </div>
           </div>
+        )}
 
-          <div className="nta-deck-name">
-            <label htmlFor="deck-name">Deck name</label>
-            <input
-              id="deck-name"
-              type="text"
-              value={deckName}
-              onChange={e => setDeckName(e.target.value)}
-            />
-          </div>
-
-          {cards.length > 0 && (
-            <button className="nta-btn nta-btn--primary" onClick={downloadDeck}>
-              Download .apkg
-            </button>
-          )}
-
-          {cards.length === 0 && (
-            <p className="nta-empty">No cards were extracted. Make sure your PDF has bold questions with answers below them.</p>
-          )}
-
-          <div className="nta-card-list">
-            {cards.map((card, idx) => (
-              <div key={idx} className="nta-card">
-                <div className="nta-card-header">
-                  <span className="nta-card-number">#{idx + 1}</span>
-                  {card.tags.length > 0 && (
-                    <div className="nta-tags">
-                      {card.tags.map(tag => (
-                        <span key={tag} className="nta-tag">{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="nta-card-actions">
-                    <button
-                      className="nta-btn-icon"
-                      onClick={() => {
-                        if (editingIdx === idx) {
-                          setMetrics(prev => ({ ...prev, edited: prev.edited + 1 }))
-                          setEditingIdx(null)
-                        } else {
-                          setEditingIdx(idx)
-                        }
-                      }}
-                      title={editingIdx === idx ? 'Done editing' : 'Edit card'}
-                    >
-                      {editingIdx === idx ? '✓' : '✎'}
-                    </button>
-                    <button
-                      className="nta-btn-icon nta-btn-icon--delete"
-                      onClick={() => deleteCard(idx)}
-                      title="Delete card"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-
-                {editingIdx === idx ? (
-                  <div className="nta-card-edit">
-                    <label>Front</label>
-                    <textarea
-                      value={card.front}
-                      onChange={e => updateCard(idx, 'front', e.target.value)}
-                      rows={2}
-                    />
-                    <label>Back</label>
-                    <textarea
-                      value={card.back}
-                      onChange={e => updateCard(idx, 'back', e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                ) : (
-                  <div className="nta-card-body">
-                    <div className="nta-card-front">
-                      <strong>Q:</strong> {card.front}
-                    </div>
-                    <div className="nta-card-back">
-                      <strong>A:</strong> {card.back}
-                    </div>
-                  </div>
-                )}
+        {/* GENERATING STATE */}
+        {state === 'generating' && (
+          <div className="screen">
+            <div className="upload-zone loading">
+              <div className="spinner" />
+              <p className="loading-text">Building Anki deck&hellip;</p>
+              <div className="progress-bar-wrap">
+                <div className="progress-bar-fill" />
               </div>
-            ))}
+            </div>
           </div>
+        )}
 
+        {/* RESULTS SCREEN */}
+        {state === 'preview' && (
+          <div className="screen">
+            <div className="results-header">
+              <div className="card-count">
+                <span className="count-num">{cards.length}</span>
+                <span className="count-label">card{cards.length !== 1 ? 's' : ''} generated</span>
+              </div>
+              <button className="btn-ghost" onClick={reset}>
+                &uarr; Upload different PDF
+              </button>
+            </div>
+
+            <div className="deck-row">
+              <div className="input-wrap">
+                <span className="input-label">Deck name</span>
+                <input
+                  type="text"
+                  value={deckName}
+                  onChange={e => setDeckName(e.target.value)}
+                  placeholder="e.g. Psychiatry — Bipolar Disorder"
+                />
+              </div>
+              {cards.length > 0 && (
+                <button
+                  className={`btn-download${downloadSuccess ? ' success' : ''}`}
+                  onClick={downloadDeck}
+                >
+                  {downloadSuccess ? (
+                    <>
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 8l4 4 6-6"/>
+                      </svg>
+                      Downloaded!
+                    </>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 2v8M5 7l3 3 3-3M3 13h10"/>
+                      </svg>
+                      Download .apkg
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {cards.length === 0 && (
+              <p className="nta-empty">No cards were extracted. Make sure your PDF has bold questions with answers below them.</p>
+            )}
+
+            {cards.length > 0 && (
+              <>
+                <div className="divider">Preview</div>
+                <div className="card-list">
+                  {cards.map((card, idx) => (
+                    <div
+                      key={idx}
+                      className="flashcard"
+                      style={{ animationDelay: `${idx * 40}ms` }}
+                    >
+                      <div className="card-meta">
+                        <div className="card-left">
+                          <span className="card-num">#{idx + 1}</span>
+                          {card.tags.map(tag => (
+                            <span key={tag} className="card-tag">{tag}</span>
+                          ))}
+                        </div>
+                        <div className="card-actions">
+                          <button
+                            className="icon-btn"
+                            title={editingIdx === idx ? 'Done editing' : 'Edit'}
+                            onClick={() => {
+                              if (editingIdx === idx) {
+                                setMetrics(prev => ({ ...prev, edited: prev.edited + 1 }))
+                                setEditingIdx(null)
+                              } else {
+                                setEditingIdx(idx)
+                              }
+                            }}
+                          >
+                            {editingIdx === idx ? (
+                              <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 8l3 3 6-6"/>
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10 2l3 3-8 8H2v-3L10 2z"/>
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            className="icon-btn delete"
+                            title="Delete"
+                            onClick={() => deleteCard(idx)}
+                          >
+                            <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 4h9M5 4V3h5v1M6 7v4M9 7v4M4 4l.5 8h6l.5-8"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+
+                      {editingIdx === idx ? (
+                        <div className="card-edit">
+                          <label>Front</label>
+                          <textarea
+                            value={card.front}
+                            onChange={e => updateCard(idx, 'front', e.target.value)}
+                            rows={2}
+                          />
+                          <label>Back</label>
+                          <textarea
+                            value={card.back}
+                            onChange={e => updateCard(idx, 'back', e.target.value)}
+                            rows={4}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="card-q">
+                            <span className="label-q">Q</span>
+                            <span>{card.front}</span>
+                          </div>
+                          <div className="separator" />
+                          <div className="card-a">
+                            <span className="label-a">A</span>
+                            <span>{card.back}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="footer">
+        <div className="footer-rule" />
+        <div className="footer-text">
+          <span className="footer-copy">&copy; 2026</span>
+          <span className="footer-name">Danial Beg</span>
         </div>
-      )}
-    </div>
+        <div className="footer-rule" />
+      </div>
+    </>
   )
 }

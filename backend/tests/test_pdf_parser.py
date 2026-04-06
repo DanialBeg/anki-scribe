@@ -90,6 +90,40 @@ def test_black_text_not_heading():
     assert len(heading_paras) == 0
 
 
+def test_lone_bullet_merging():
+    """Lone bullet characters (Word PDFs) merge with the following text line."""
+    pdf_bytes = _make_pdf([
+        ("What is X?", "hebo", 12, (0, 0, 0), True),
+        ("-", "helv", 12, (0, 0, 0), False),
+        ("First point", "helv", 12, (0, 0, 0), False),
+        ("-", "helv", 12, (0, 0, 0), False),
+        ("Second point", "helv", 12, (0, 0, 0), False),
+    ])
+    paragraphs = parse_pdf(pdf_bytes)
+    non_bold = [p for p in paragraphs if not p.is_bold and p.text.strip()]
+    bullet_texts = [p.text for p in non_bold]
+    assert "- First point" in bullet_texts
+    assert "- Second point" in bullet_texts
+
+
+def test_lone_bullet_end_to_end():
+    """Lone bullets merge correctly through the full QA extraction pipeline."""
+    from qa_parser import extract_cards
+
+    pdf_bytes = _make_pdf([
+        ("What is X?", "hebo", 12, (0, 0, 0), True),
+        ("-", "helv", 12, (0, 0, 0), False),
+        ("First point", "helv", 12, (0, 0, 0), False),
+        ("-", "helv", 12, (0, 0, 0), False),
+        ("Second point", "helv", 12, (0, 0, 0), False),
+    ])
+    paragraphs = parse_pdf(pdf_bytes)
+    cards = extract_cards(paragraphs)
+    assert len(cards) == 1
+    assert "- First point" in cards[0].back
+    assert "- Second point" in cards[0].back
+
+
 def test_end_to_end_with_qa_parser():
     """Verify PDF paragraphs feed correctly into the QA parser."""
     from qa_parser import extract_cards

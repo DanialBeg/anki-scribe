@@ -8,6 +8,7 @@ import fitz
 from models import Paragraph
 
 _BULLET_RE = re.compile(r"^(\d{1,2}[.)]\s|[-•·–—]\s)")
+_LONE_BULLET_RE = re.compile(r"^[-•·–—]$|^\d{1,2}[.)]$")
 
 
 def _rgb_to_hex(color: int) -> str:
@@ -102,10 +103,16 @@ def _merge_continuations(paragraphs: list[Paragraph]) -> list[Paragraph]:
         if not para.text:
             merged.append(para)
             continue
-        if (not para.is_bold and not para.is_heading
+        if (_LONE_BULLET_RE.match(prev.text)
+                and not para.is_bold and not para.is_heading
+                and not _LONE_BULLET_RE.match(para.text)):
+            prev.text = prev.text + " " + para.text.lstrip()
+            prev.is_bold = False
+        elif (not para.is_bold and not para.is_heading
                 and not prev.is_bold and not prev.is_heading
                 and _BULLET_RE.match(prev.text)
-                and not _BULLET_RE.match(para.text)):
+                and not _BULLET_RE.match(para.text)
+                and not _LONE_BULLET_RE.match(para.text)):
             prev.text = prev.text.rstrip() + " " + para.text.lstrip()
         elif (para.is_bold and prev.is_bold
                 and para.text[0].islower()):
